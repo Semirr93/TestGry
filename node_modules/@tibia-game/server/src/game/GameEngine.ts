@@ -1,10 +1,12 @@
 import { Server, Socket } from 'socket.io';
-import { Position, Player, PlayerPosition, MovePayload, GameStateUpdate, ClientToServerEvents, ServerToClientEvents } from '../../../../shared/types';
+import { Position, Player, PlayerPosition, MovePayload, GameStateUpdate, ClientToServerEvents, ServerToClientEvents, TileType, Tile, GameMap, MapData } from '../../../../shared/types';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export class GameEngine {
   private players: Map<string, Player> = new Map();
-  private mapWidth: number = 20;
-  private mapHeight: number = 20;
+  private map: GameMap;
+  private tileTypes: Record<TileType, { name: string; color: string }>;
   private tickRate: number = 100; // 10 ticks per second
   private currentTick: number = 0;
   private gameLoop: NodeJS.Timeout | null = null;
@@ -13,11 +15,54 @@ export class GameEngine {
   constructor(io: Server<ClientToServerEvents, ServerToClientEvents>) {
     this.io = io;
     this.initializeMap();
+    this.initializeTileTypes();
   }
 
   private initializeMap(): void {
-    // In the future, this will load from database
-    console.log(`Map initialized: ${this.mapWidth}x${this.mapHeight}`);
+    try {
+      const mapPath = path.join(__dirname, 'testMap.json');
+      const mapData = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+      
+      // Convert numeric tile types to Tile objects
+      const tiles: Tile[][] = mapData.tiles.map((row: number[]) =>
+        row.map((tileType: number) => ({
+          type: tileType as TileType,
+          isWalkable: tileType !== TileType.WALL && tileType !== TileType.WATER
+        }))
+      );
+
+      this.map = {
+        width: mapData.width,
+        height: mapData.height,
+        tiles
+      };
+
+      console.log(`Map loaded: ${this.map.width}x${this.map.height}`);
+    } catch (error) {
+      console.error('Failed to load map:', error);
+      // Fallback to empty map
+      this.map = {
+        width: 20,
+        height: 20,
+        tiles: Array(20).fill(null).map(() => 
+          Array(20).fill(null).map(() => ({
+            type: TileType.GRASS,
+            isWalkable: true
+          }))
+        )
+      };
+    }
+  }
+
+  private initializeTileTypes(): void {
+    this.tileTypes = {
+      [TileType.GRASS]: { name: 'Grass', color: '#2d5016' },
+      [TileType.WALL]: { name: 'Wall', color: '#8b7355' },
+      [TileType.WATER]: { name: 'Water', color: '#1e90ff' },
+      [TileType.STONE]: { name: 'Stone', color: '#696969' },
+      [TileType.DIRT]: { name: 'Dirt', color: '#8b4513' },
+      [TileType.SAND]: { name: 'Sand', color: '#f4a460' }
+    };
   }
 
   public start(): void {
@@ -104,6 +149,11 @@ export class GameEngine {
       return { success: false, reason: 'Position occupied' };
     }
 
+    // Check if tile is walkable
+    if (!this.isTileWalkable(newPosition)) {
+      return { success: false, reason: 'Cannot walk on this tile' };
+    }
+
     // Update player position
     player.position = newPosition;
     console.log(`Player ${player.name} moved to (${newPosition.x}, ${newPosition.y})`);
@@ -134,10 +184,17 @@ export class GameEngine {
 
   private isValidPosition(position: Position): boolean {
     return position.x >= 0 && 
-           position.x < this.mapWidth && 
+           position.x < this.map.width && 
            position.y >= 0 && 
-           position.y < this.mapHeight &&
+           position.y < this.map.height &&
            position.z >= 0;
+  }
+
+  private isTileWalkable(position: Position): boolean {
+    if (!this.isValidPosition(position)) return false;
+    
+    const tile = this.map.tiles[position.y][position.x];
+    return tile.isWalkable;
   }
 
   private isPositionOccupied(position: Position, excludePlayerId: string): boolean {
@@ -157,11 +214,11 @@ export class GameEngine {
     const maxAttempts = 100;
     
     while (attempts < maxAttempts) {
-      const x = Math.floor(Math.random() * this.mapWidth);
-      const y = Math.floor(Math.random() * this.mapHeight);
+      const x = Math.floor(Math.random() * this.map.width);
+      const y = Math.floor(Math.random() * this.map.height);
       const position = { x, y, z: 0 };
       
-      if (!this.isPositionOccupied(position, '')) {
+      if (this.isTileWalkable(position) && !this.isPositionOccupied(position, '')) {
         return position;
       }
       
@@ -169,7 +226,7 @@ export class GameEngine {
     }
     
     // Fallback to origin if no empty position found
-    return { x: 0, y: 0, z: 0 };
+    return { x: 1, y: 1, z: 0 };
   }
 
   public getPlayer(socketId: string): Player | undefined {
@@ -178,5 +235,12 @@ export class GameEngine {
 
   public getAllPlayers(): Player[] {
     return Array.from(this.players.values());
+  }
+
+  public getMapData(): MapData {
+    return {
+      map: this.map,
+      tileTypes: this.tileTypes
+    };
   }
 }

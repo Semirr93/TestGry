@@ -33,6 +33,10 @@ io.on('connection', (socket) => {
   socket.on('PLAYER_JOIN', (playerName: string) => {
     const player = gameEngine.addPlayer(socket.id, playerName);
     
+    // Send map data to the new player
+    const mapData = gameEngine.getMapData();
+    socket.emit('MAP_DATA', mapData);
+    
     // Notify all players about the new player
     socket.broadcast.emit('PLAYER_JOINED', player);
     

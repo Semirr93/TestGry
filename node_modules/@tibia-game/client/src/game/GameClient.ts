@@ -1,6 +1,7 @@
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import { io, Socket } from 'socket.io-client';
-import { Position, PlayerPosition, GameStateUpdate, MovePayload, ClientToServerEvents, ServerToClientEvents } from '../../../../shared/types';
+import { Position, PlayerPosition, GameStateUpdate, MovePayload, ClientToServerEvents, ServerToClientEvents, MapData } from '../../../../shared/types';
+import { MapRenderer } from './MapRenderer';
 
 export class GameClient {
   private app: Application;
@@ -14,6 +15,8 @@ export class GameClient {
   private cameraPosition: Position = { x: 0, y: 0, z: 0 };
   private localPlayerId: string = '';
   private playerName: string = '';
+  private mapRenderer: MapRenderer;
+  private mapData: MapData | null = null;
 
   constructor(canvas: HTMLCanvasElement, playerName: string) {
     this.playerName = playerName;
@@ -25,9 +28,16 @@ export class GameClient {
     });
 
     this.socket = io('http://localhost:3001');
+    this.mapRenderer = new MapRenderer(
+      this.viewportWidth * this.tileSize,
+      this.viewportHeight * this.tileSize
+    );
+    
     this.setupSocketListeners();
     this.setupKeyboardControls();
-    this.createMap();
+    
+    // Add map renderer to stage
+    this.app.stage.addChild(this.mapRenderer.getContainer());
   }
 
   private setupSocketListeners(): void {
@@ -59,25 +69,17 @@ export class GameClient {
     this.socket.on('MOVE_REJECTED', (reason: string) => {
       console.log('Move rejected:', reason);
     });
-  }
 
-  private createMap(): void {
-    const mapContainer = new Container();
-    
-    // Create grid tiles
-    for (let x = 0; x < this.mapWidth; x++) {
-      for (let y = 0; y < this.mapHeight; y++) {
-        const tile = new Graphics();
-        tile.beginFill((x + y) % 2 === 0 ? 0x2d5016 : 0x3a6b1e);
-        tile.drawRect(0, 0, this.tileSize, this.tileSize);
-        tile.endFill();
-        tile.x = x * this.tileSize;
-        tile.y = y * this.tileSize;
-        mapContainer.addChild(tile);
-      }
-    }
-
-    this.app.stage.addChild(mapContainer);
+    this.socket.on('MAP_DATA', async (mapData: MapData) => {
+      console.log('Received map data:', mapData);
+      this.mapData = mapData;
+      this.mapWidth = mapData.map.width;
+      this.mapHeight = mapData.map.height;
+      
+      // Load and render the map
+      await this.mapRenderer.loadMap(mapData.map);
+      this.updateCamera();
+    });
   }
 
   private createPlayerContainer(playerId: string, position: Position, name: string): void {
@@ -121,6 +123,9 @@ export class GameClient {
       // Update position with interpolation
       this.interpolatePlayerPosition(playerContainer, playerPos.position);
     });
+
+    // Update camera to follow local player
+    this.updateCamera();
   }
 
   private interpolatePlayerPosition(playerContainer: Container, targetPosition: Position): void {
@@ -131,6 +136,33 @@ export class GameClient {
     const speed = 0.2;
     playerContainer.x += (targetX - playerContainer.x) * speed;
     playerContainer.y += (targetY - playerContainer.y) * speed;
+  }
+
+  private updateCamera(): void {
+    const localPlayer = this.players.get(this.localPlayerId);
+    if (!localPlayer) return;
+
+    // Calculate camera position to center on local player
+    const targetCameraX = localPlayer.x - (this.viewportWidth * this.tileSize) / 2;
+    const targetCameraY = localPlayer.y - (this.viewportHeight * this.tileSize) / 2;
+
+    // Smooth camera movement
+    const cameraSpeed = 0.1;
+    this.cameraPosition.x += (targetCameraX - this.cameraPosition.x) * cameraSpeed;
+    this.cameraPosition.y += (targetCameraY - this.cameraPosition.y) * cameraSpeed;
+
+    // Update map renderer position (viewport culling)
+    this.mapRenderer.getContainer().x = -this.cameraPosition.x;
+    this.mapRenderer.getContainer().y = -this.cameraPosition.y;
+    
+    // Render only visible tiles
+    this.mapRenderer.render(this.cameraPosition.x, this.cameraPosition.y);
+
+    // Update player positions relative to camera
+    this.players.forEach((playerContainer) => {
+      playerContainer.x -= this.cameraPosition.x;
+      playerContainer.y -= this.cameraPosition.y;
+    });
   }
 
   private removePlayer(playerId: string): void {
