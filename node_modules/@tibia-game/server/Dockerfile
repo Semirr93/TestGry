@@ -35,7 +35,7 @@ COPY apps/server/package*.json ./apps/server/
 # Install ONLY production dependencies
 RUN npm ci --only=production
 
-# Copy built files from builder stage
+# Copy built files from builder stage to correct location
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 
 # Copy shared folder (needed for runtime)
@@ -49,4 +49,5 @@ ENV NODE_ENV=production
 ENV PORT=3001
 
 # Start the server
-CMD ["node", "dist/apps/server/src/index.js"]
+WORKDIR /app/apps/server
+CMD ["node", "dist/src/index.js"]
