@@ -1,7 +1,8 @@
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import { io, Socket } from 'socket.io-client';
-import { Position, PlayerPosition, GameStateUpdate, MovePayload, ClientToServerEvents, ServerToClientEvents, MapData, ChatMessagePayload } from '../../../../shared/types';
+import { Position, PlayerPosition, GameStateUpdate, MovePayload, ClientToServerEvents, ServerToClientEvents, MapData, ChatMessagePayload, WorldItem, ItemPickupPayload, ItemDropPayload, InventorySlot } from '../../../../shared/types';
 import { MapRenderer } from './MapRenderer';
+import { ItemRenderer } from './ItemRenderer';
 
 interface PlayerContainer extends Container {
   playerName: Text;
@@ -22,9 +23,12 @@ export class GameClient {
   private localPlayerId: string = '';
   private playerName: string = '';
   private mapRenderer: MapRenderer;
+  private itemRenderer: ItemRenderer;
   private mapData: MapData | null = null;
   private wsUrl: string;
   private onChatMessage?: (message: ChatMessagePayload & { senderName: string }) => void;
+  private onInventoryUpdate?: (inventory: InventorySlot[]) => void;
+  private nearbyItems: WorldItem[] = [];
 
   constructor(canvas: HTMLCanvasElement, playerName: string) {
     this.playerName = playerName;
@@ -42,27 +46,33 @@ export class GameClient {
       this.viewportWidth * this.tileSize,
       this.viewportHeight * this.tileSize
     );
+    this.itemRenderer = new ItemRenderer();
     
     this.setupSocketListeners();
     this.setupKeyboardControls();
     
-    // Add map renderer to stage
+    // Add map renderer to stage (below players)
     this.app.stage.addChild(this.mapRenderer.getContainer());
+    
+    // Add item renderer to stage (above map, below players)
+    this.app.stage.addChild(this.itemRenderer.getContainer());
   }
 
   public setChatMessageHandler(handler: (message: ChatMessagePayload & { senderName: string }) => void): void {
     this.onChatMessage = handler;
   }
 
-  public sendMessage(text: string): void {
-    if (text.trim()) {
-      const payload: ChatMessagePayload = {
-        senderId: this.localPlayerId,
-        text: text.trim(),
-        timestamp: Date.now()
-      };
-      this.socket.emit('CHAT_MESSAGE', payload);
-    }
+  public setInventoryHandler(handler: (inventory: InventorySlot[]) => void): void {
+    this.onInventoryUpdate = handler;
+  }
+
+  public dropItem(payload: ItemDropPayload): void {
+    this.socket.emit('ITEM_DROP', payload);
+  }
+
+  public getLocalPlayer(): { position: Position } | null {
+    const player = this.players.get(this.localPlayerId);
+    return player ? { position: { x: player.position.x, y: player.position.y, z: player.position.z } } : null;
   }
 
   private setupSocketListeners(): void {
@@ -95,12 +105,22 @@ export class GameClient {
       console.log('Move rejected:', reason);
     });
 
-    this.socket.on('CHAT_MESSAGE', (message) => {
-      console.log(`Chat message: ${message.senderName}: ${message.text}`);
-      if (this.onChatMessage) {
-        this.onChatMessage(message);
+    this.socket.on('ITEM_PICKUP', (payload: any) => {
+      console.log(`Item picked up: ${payload.item.name}`);
+      if (this.onInventoryUpdate) {
+        // Update inventory would be handled by INVENTORY_UPDATE event
       }
-      this.showMessageBubble(message.senderId, message.text);
+    });
+
+    this.socket.on('ITEM_DROP', (payload: any) => {
+      console.log(`Item dropped: ${payload.item.name}`);
+    });
+
+    this.socket.on('INVENTORY_UPDATE', (payload: any) => {
+      console.log('Inventory updated');
+      if (this.onInventoryUpdate) {
+        this.onInventoryUpdate(payload.inventory);
+      }
     });
 
     this.socket.on('MAP_DATA', async (mapData: MapData) => {
@@ -112,6 +132,14 @@ export class GameClient {
       // Load and render the map
       await this.mapRenderer.loadMap(mapData.map);
       this.updateCamera();
+    });
+
+    this.socket.on('CHAT_MESSAGE', (message: any) => {
+      console.log(`Chat message: ${message.senderName}: ${message.text}`);
+      if (this.onChatMessage) {
+        this.onChatMessage(message);
+      }
+      this.showMessageBubble(message.senderId, message.text);
     });
   }
 

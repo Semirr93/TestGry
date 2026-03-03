@@ -1,7 +1,8 @@
 import { Server, Socket } from 'socket.io';
-import { Position, Player, PlayerPosition, MovePayload, GameStateUpdate, ClientToServerEvents, ServerToClientEvents, TileType, Tile, GameMap, MapData, ChatMessagePayload, CHAT_RANGE } from '../../../../shared/types';
+import { Position, Player, PlayerPosition, MovePayload, GameStateUpdate, ClientToServerEvents, ServerToClientEvents, TileType, Tile, GameMap, MapData, ChatMessagePayload, CHAT_RANGE, Item, WorldItem, ItemPickupPayload, ItemDropPayload, InventorySlot } from '../../../../shared/types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ItemManager } from './ItemManager';
 
 export class GameEngine {
   private players: Map<string, Player> = new Map();
@@ -11,9 +12,11 @@ export class GameEngine {
   private currentTick: number = 0;
   private gameLoop: NodeJS.Timeout | null = null;
   private io: Server<ClientToServerEvents, ServerToClientEvents>;
+  private itemManager: ItemManager;
 
   constructor(io: Server<ClientToServerEvents, ServerToClientEvents>) {
     this.io = io;
+    this.itemManager = new ItemManager();
     this.initializeMap();
     this.initializeTileTypes();
   }
@@ -115,13 +118,26 @@ export class GameEngine {
       mana: 50,
       maxMana: 50,
       level: 1,
-      experience: 0
+      experience: 0,
+      inventory: this.createEmptyInventory()
     };
 
     this.players.set(socketId, player);
     console.log(`Player ${playerName} joined at position (${spawnPosition.x}, ${spawnPosition.y})`);
     
     return player;
+  }
+
+  private createEmptyInventory(): InventorySlot[] {
+    const inventory: InventorySlot[] = [];
+    for (let i = 0; i < 20; i++) {
+      inventory.push({
+        slot: i,
+        item: null,
+        quantity: 0
+      });
+    }
+    return inventory;
   }
 
   public removePlayer(socketId: string): void {
@@ -235,6 +251,66 @@ export class GameEngine {
 
   public getAllPlayers(): Player[] {
     return Array.from(this.players.values());
+  }
+
+  public handleItemPickup(socketId: string, payload: ItemPickupPayload): { success: boolean; item?: Item; reason?: string } {
+    const player = this.players.get(socketId);
+    if (!player) {
+      return { success: false, reason: 'Player not found' };
+    }
+
+    const worldItem = this.itemManager.getItemAtPosition(player.position);
+    if (!worldItem) {
+      return { success: false, reason: 'No item at this position' };
+    }
+
+    // Check if player is close enough to the item (same tile or adjacent)
+    const distance = this.calculateDistance(player.position, worldItem.position);
+    if (distance > 1) { // Allow pickup from adjacent tiles
+      return { success: false, reason: 'Too far from item' };
+    }
+
+    // Check if player has inventory space
+    const emptySlot = player.inventory.find(slot => slot.item === null);
+    if (!emptySlot) {
+      return { success: false, reason: 'Inventory is full' };
+    }
+
+    // Pickup the item
+    this.itemManager.pickupItem(payload.worldItemId);
+    
+    // Add to inventory
+    emptySlot.item = worldItem.item;
+    emptySlot.quantity = 1;
+
+    console.log(`Player ${player.name} picked up ${worldItem.item.name}`);
+
+    // Notify player
+    return { success: true, item: worldItem.item };
+  }
+
+  public handleItemDrop(socketId: string, payload: ItemDropPayload): { success: boolean; reason?: string } {
+    const player = this.players.get(socketId);
+    if (!player) {
+      return { success: false, reason: 'Player not found' };
+    }
+
+    // Find the item in player's inventory
+    const itemSlot = player.inventory.find(slot => slot.item && slot.item.id === payload.item.id);
+    if (!itemSlot) {
+      return { success: false, reason: 'Item not in inventory' };
+    }
+
+    // Remove from inventory
+    itemSlot.item = null;
+    itemSlot.quantity = 0;
+
+    // Drop to world
+    this.itemManager.dropItem(payload.item, payload.position);
+
+    console.log(`Player ${player.name} dropped ${payload.item.name}`);
+
+    return { success: true };
   }
 
   public getMapData(): MapData {

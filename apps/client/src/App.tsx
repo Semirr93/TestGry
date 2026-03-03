@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GameCanvas } from './components/GameCanvas';
 import { ChatOverlay } from './components/ChatOverlay';
-import { ChatMessagePayload } from '../../../shared/types';
+import { InventoryPanel } from './components/InventoryPanel';
+import { ChatMessagePayload, InventorySlot, ItemDropPayload } from '../../../shared/types';
 import './App.css';
 
 function App() {
@@ -9,6 +10,7 @@ function App() {
   const [gameStarted, setGameStarted] = useState(false);
   const [chatActive, setChatActive] = useState(false);
   const [chatMessages, setChatMessages] = useState<(ChatMessagePayload & { senderName: string })[]>([]);
+  const [inventory, setInventory] = useState<InventorySlot[]>([]);
   const gameClientRef = useRef<any>(null);
 
   const handleStartGame = () => {
@@ -25,6 +27,23 @@ function App() {
 
   const handleChatMessage = (message: ChatMessagePayload & { senderName: string }) => {
     setChatMessages(prev => [...prev.slice(-50), message]); // Keep last 50 messages
+  };
+
+  const handleInventoryUpdate = (inventory: InventorySlot[]) => {
+    setInventory(inventory);
+  };
+
+  const handleDropItem = (slot: InventorySlot) => {
+    if (gameClientRef.current && slot.item) {
+      const localPlayer = gameClientRef.current.getLocalPlayer();
+      if (localPlayer) {
+        const dropPayload: ItemDropPayload = {
+          item: slot.item,
+          position: localPlayer.position
+        };
+        gameClientRef.current.dropItem(dropPayload);
+      }
+    }
   };
 
   useEffect(() => {
@@ -49,9 +68,11 @@ function App() {
         <GameCanvas 
           playerName={playerName} 
           onChatMessage={handleChatMessage}
+          onInventoryUpdate={handleInventoryUpdate}
           onGameClientReady={(client) => {
             gameClientRef.current = client;
             client.setChatMessageHandler(handleChatMessage);
+            client.setInventoryHandler(handleInventoryUpdate);
           }}
         />
         <ChatOverlay
@@ -60,6 +81,10 @@ function App() {
           isActive={chatActive}
           onActivate={() => setChatActive(true)}
           onDeactivate={() => setChatActive(false)}
+        />
+        <InventoryPanel
+          inventory={inventory}
+          onDropItem={handleDropItem}
         />
       </div>
     );

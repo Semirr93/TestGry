@@ -55,6 +55,44 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle item pickup
+  socket.on('ITEM_PICKUP', (payload) => {
+    const result = gameEngine.handleItemPickup(socket.id, payload);
+    
+    if (result.success && result.item) {
+      socket.emit('INVENTORY_UPDATE', { 
+        playerId: socket.id, 
+        inventory: gameEngine.getPlayer(socket.id)?.inventory || [] 
+      });
+      
+      // Notify other players
+      socket.broadcast.emit('ITEM_PICKUP', {
+        playerId: socket.id,
+        item: result.item,
+        worldItemId: payload.worldItemId
+      });
+    } else {
+      socket.emit('MOVE_REJECTED', result.reason || 'Cannot pickup item');
+    }
+  });
+
+  // Handle item drop
+  socket.on('ITEM_DROP', (payload) => {
+    const result = gameEngine.handleItemDrop(socket.id, payload);
+    
+    if (result.success) {
+      socket.emit('INVENTORY_UPDATE', { 
+        playerId: socket.id, 
+        inventory: gameEngine.getPlayer(socket.id)?.inventory || [] 
+      });
+      
+      // Notify other players
+      socket.broadcast.emit('ITEM_DROP', payload);
+    } else {
+      socket.emit('MOVE_REJECTED', result.reason || 'Cannot drop item');
+    }
+  });
+  
   // Handle chat messages
   socket.on('CHAT_MESSAGE', (payload) => {
     gameEngine.handleChatMessage(socket.id, payload);

@@ -16,6 +16,7 @@ export interface Player {
   maxMana: number;
   level: number;
   experience: number;
+  inventory: InventorySlot[];
 }
 
 export interface PlayerPosition {
@@ -41,6 +42,58 @@ export interface GameStateUpdate {
 
 // Chat range constant
 export const CHAT_RANGE = 10;
+
+// Item types
+export enum ItemType {
+  EQUIPABLE = 'EQUIPABLE',
+  CONSUMABLE = 'CONSUMABLE',
+  MISC = 'MISC'
+}
+
+export enum ItemRarity {
+  COMMON = 'COMMON',
+  UNCOMMON = 'UNCOMMON',
+  RARE = 'RARE',
+  EPIC = 'EPIC',
+  LEGENDARY = 'LEGENDARY'
+}
+
+export interface Item {
+  id: string;
+  name: string;
+  type: ItemType;
+  rarity: ItemRarity;
+  spriteId: number;
+  description?: string;
+  value?: number;
+}
+
+export interface WorldItem {
+  item: Item;
+  position: Position;
+  worldItemId: string;
+  spawnTime: number;
+}
+
+export interface InventorySlot {
+  slot: number;
+  item: Item | null;
+  quantity: number;
+}
+
+export interface ItemSpawnPayload {
+  item: Item;
+  position: Position;
+}
+
+export interface ItemPickupPayload {
+  worldItemId: string;
+}
+
+export interface ItemDropPayload {
+  item: Item;
+  position: Position;
+}
 
 // Tile types dictionary
 export enum TileType {
@@ -71,6 +124,7 @@ export interface MapData {
 export interface GameState {
   players: Map<string, Player>;
   map: GameMap;
+  items: Map<string, WorldItem>;
   tick: number;
 }
 
@@ -80,6 +134,8 @@ export interface ClientToServerEvents {
   PLAYER_JOIN: (playerName: string) => void;
   PLAYER_DISCONNECT: () => void;
   CHAT_MESSAGE: (payload: ChatMessagePayload) => void;
+  ITEM_PICKUP: (payload: ItemPickupPayload) => void;
+  ITEM_DROP: (payload: ItemDropPayload) => void;
 }
 
 export interface ServerToClientEvents {
@@ -91,4 +147,8 @@ export interface ServerToClientEvents {
   MOVE_REJECTED: (reason: string) => void;
   MAP_DATA: (mapData: MapData) => void;
   CHAT_MESSAGE: (payload: ChatMessagePayload & { senderName: string }) => void;
+  ITEM_SPAWN: (payload: ItemSpawnPayload) => void;
+  ITEM_PICKUP: (payload: { playerId: string; item: Item; worldItemId: string }) => void;
+  ITEM_DROP: (payload: ItemDropPayload) => void;
+  INVENTORY_UPDATE: (payload: { playerId: string; inventory: InventorySlot[] }) => void;
 }

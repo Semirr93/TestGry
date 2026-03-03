@@ -1,14 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { GameClient } from '../game/GameClient';
-import { ChatMessagePayload } from '../../../shared/types';
+import { ChatMessagePayload, InventorySlot } from '../../../shared/types';
 
 interface GameCanvasProps {
   playerName: string;
   onChatMessage: (message: ChatMessagePayload & { senderName: string }) => void;
+  onInventoryUpdate: (inventory: InventorySlot[]) => void;
   onGameClientReady: (client: GameClient) => void;
 }
 
-export const GameCanvas: React.FC<GameCanvasProps> = ({ playerName, onChatMessage, onGameClientReady }) => {
+export const GameCanvas: React.FC<GameCanvasProps> = ({ playerName, onChatMessage, onInventoryUpdate, onGameClientReady }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameClientRef = useRef<GameClient | null>(null);
 
@@ -16,6 +17,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ playerName, onChatMessag
     if (canvasRef.current && !gameClientRef.current) {
       gameClientRef.current = new GameClient(canvasRef.current, playerName);
       gameClientRef.current.setChatMessageHandler(onChatMessage);
+      gameClientRef.current.setInventoryHandler(onInventoryUpdate);
       onGameClientReady(gameClientRef.current);
     }
 
@@ -25,7 +27,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ playerName, onChatMessag
         gameClientRef.current = null;
       }
     };
-  }, [playerName, onChatMessage, onGameClientReady]);
+  }, [playerName, onChatMessage, onInventoryUpdate, onGameClientReady]);
 
   return (
     <div className="game-container">
