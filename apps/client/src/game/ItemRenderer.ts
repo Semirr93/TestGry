@@ -1,5 +1,29 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { WorldItem, Item, ItemRarity } from '../../../../shared/types';
+
+// Define types locally to avoid shared types issues
+export enum ItemRarity {
+  COMMON = 'common',
+  UNCOMMON = 'uncommon',
+  RARE = 'rare',
+  EPIC = 'epic',
+  LEGENDARY = 'legendary'
+}
+
+export interface Item {
+  id: string;
+  name: string;
+  rarity: ItemRarity;
+  description: string;
+  value: number;
+}
+
+export interface WorldItem {
+  id: string;
+  worldItemId: string;
+  itemId: string;
+  position: { x: number; y: number; z: number };
+  item: Item;
+}
 
 export class ItemRenderer {
   private container: Container;
