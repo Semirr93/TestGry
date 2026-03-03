@@ -41,6 +41,9 @@ RUN npm ci --only=production
 # Copy built files from builder stage to correct location
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 
+# Copy map file explicitly (needed for game engine)
+COPY --from=builder /app/apps/server/src/game/testMap.json ./apps/server/dist/src/game/testMap.json
+
 # Copy shared folder (needed for runtime)
 COPY shared/ ./shared/
 
