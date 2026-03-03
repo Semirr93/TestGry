@@ -23,8 +23,8 @@ RUN npm ci
 WORKDIR /app/apps/server
 RUN npm run build
 
-# Debug: Show exact path to index.js
-RUN find /app/apps/server/dist -name "index.js" -exec echo "Found index.js at: {}" \;
+# Debug: Show exact structure of dist folder
+RUN echo "STRUKTURA DIST:" && find dist -name index.js
 
 # Production stage
 FROM node:20-slim as production
