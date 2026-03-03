@@ -39,7 +39,7 @@ COPY apps/server/package*.json ./apps/server/
 RUN npm ci --only=production
 
 # Copy built files from builder stage to correct location
-COPY --from=builder /app/apps/server/dist ./dist
+COPY --from=builder /app/apps/server/dist ./apps/server/dist
 
 # Copy shared folder (needed for runtime)
 COPY shared/ ./shared/
