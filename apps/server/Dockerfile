@@ -7,17 +7,17 @@ WORKDIR /app
 # Copy root package.json and package-lock.json first for better caching
 COPY package*.json ./
 
-# Copy shared folder (contains TypeScript types)
+# Copy shared folder BEFORE build (needed for TypeScript compilation)
 COPY shared/ ./shared/
 
 # Copy server package.json and package-lock.json
 COPY apps/server/package*.json ./apps/server/
 
-# Install ALL dependencies (including devDependencies for TypeScript build)
-RUN npm ci
-
 # Copy server source code
 COPY apps/server/ ./apps/server/
+
+# Install ALL dependencies (including devDependencies for TypeScript build)
+RUN npm ci
 
 # Build TypeScript
 WORKDIR /app/apps/server
