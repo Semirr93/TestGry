@@ -247,10 +247,42 @@ export class GameClient {
   private createPlayerContainer(playerId: string, position: Position, name: string): void {
     const playerContainer: PlayerContainer = new Container() as PlayerContainer;
     
-    // Player body (rectangle)
+    // Create human character using graphics
     const body = new Graphics();
-    body.beginFill(playerId === this.localPlayerId ? 0x00ff00 : 0xff0000);
-    body.drawRect(0, 0, this.tileSize - 4, this.tileSize - 4);
+    const isLocalPlayer = playerId === this.localPlayerId;
+    const skinColor = isLocalPlayer ? 0xffccaa : 0xff9999; // Light skin vs pinkish
+    const shirtColor = isLocalPlayer ? 0x3366cc : 0xcc3333; // Blue vs red shirt
+    const pantsColor = 0x333333; // Dark pants
+    
+    const size = this.tileSize - 4;
+    const centerX = size / 2;
+    
+    // Head (circle)
+    body.beginFill(skinColor);
+    body.drawCircle(centerX, size * 0.25, size * 0.2);
+    body.endFill();
+    
+    // Body/Shirt (rectangle)
+    body.beginFill(shirtColor);
+    body.drawRect(size * 0.2, size * 0.4, size * 0.6, size * 0.35);
+    body.endFill();
+    
+    // Arms
+    body.beginFill(skinColor);
+    body.drawRect(size * 0.1, size * 0.45, size * 0.15, size * 0.25); // Left arm
+    body.drawRect(size * 0.75, size * 0.45, size * 0.15, size * 0.25); // Right arm
+    body.endFill();
+    
+    // Legs/Pants
+    body.beginFill(pantsColor);
+    body.drawRect(size * 0.25, size * 0.75, size * 0.2, size * 0.25); // Left leg
+    body.drawRect(size * 0.55, size * 0.75, size * 0.2, size * 0.25); // Right leg
+    body.endFill();
+    
+    // Eyes (to show direction)
+    body.beginFill(0x000000);
+    body.drawCircle(centerX - size * 0.08, size * 0.22, size * 0.03);
+    body.drawCircle(centerX + size * 0.08, size * 0.22, size * 0.03);
     body.endFill();
     
     // Player name

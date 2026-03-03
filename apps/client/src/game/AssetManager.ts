@@ -31,7 +31,7 @@ export class AssetManager {
     const tileSize = 32;
     
     // Create textures for each tile type
-    this.createTileTexture(TileType.GRASS, '#2d5016', tileSize);
+    this.createTileTexture(TileType.GRASS, '#4a7c23', tileSize);
     this.createTileTexture(TileType.WALL, '#8b7355', tileSize);
     this.createTileTexture(TileType.WATER, '#1e90ff', tileSize);
     this.createTileTexture(TileType.STONE, '#696969', tileSize);
@@ -54,16 +54,30 @@ export class AssetManager {
 
     // Add some texture/pattern
     if (tileType === TileType.GRASS) {
-      // Add grass texture
-      ctx.strokeStyle = '#1a3409';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 10; i++) {
+      // Add detailed grass texture with multiple shades
+      const grassColors = ['#3d6b1a', '#538a2b', '#6ba835', '#4a7c23'];
+      
+      // Add grass blades
+      for (let i = 0; i < 40; i++) {
         const x = Math.random() * size;
         const y = Math.random() * size;
+        const height = 3 + Math.random() * 5;
+        const color = grassColors[Math.floor(Math.random() * grassColors.length)];
+        
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(x + 2, y - 4);
+        ctx.lineTo(x + (Math.random() - 0.5) * 2, y - height);
         ctx.stroke();
+      }
+      
+      // Add some random dots for texture
+      for (let i = 0; i < 15; i++) {
+        const x = Math.random() * size;
+        const y = Math.random() * size;
+        ctx.fillStyle = grassColors[Math.floor(Math.random() * grassColors.length)];
+        ctx.fillRect(x, y, 2, 2);
       }
     } else if (tileType === TileType.WALL) {
       // Add brick pattern
