@@ -1,6 +1,25 @@
 import { Container, Sprite, Graphics } from 'pixi.js';
-import { GameMap, TileType, Tile } from '../../../../shared/types';
-import { AssetManager } from './AssetManager';
+import { AssetManager, TileType } from './AssetManager';
+
+// Define types locally to avoid shared types issues
+export interface GameMap {
+  width: number;
+  height: number;
+  tiles: number[][];
+}
+
+export interface Tile {
+  type: TileType;
+  isWalkable: boolean;
+}
+
+// Helper function to convert tile number to Tile object
+const numberToTile = (tileNumber: number): Tile => {
+  return {
+    type: tileNumber as TileType,
+    isWalkable: tileNumber !== TileType.WALL && tileNumber !== TileType.WATER
+  };
+};
 
 export class MapRenderer {
   private container: Container;
@@ -42,7 +61,7 @@ export class MapRenderer {
     for (let y = startTileY; y < endTileY; y++) {
       for (let x = startTileX; x < endTileX; x++) {
         const tile = this.map.tiles[y][x];
-        this.renderTile(x, y, tile);
+        this.renderTile(x, y, numberToTile(tile));
       }
     }
   }
@@ -117,7 +136,7 @@ export class MapRenderer {
       return null;
     }
     
-    return this.map.tiles[tileY][tileX];
+    return numberToTile(this.map.tiles[tileY][tileX]);
   }
 
   public isTileWalkable(worldX: number, worldY: number): boolean {
