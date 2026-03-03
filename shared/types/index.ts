@@ -27,11 +27,20 @@ export interface MovePayload {
   direction: 'north' | 'south' | 'east' | 'west';
 }
 
+export interface ChatMessagePayload {
+  senderId: string;
+  text: string;
+  timestamp: number;
+}
+
 export interface GameStateUpdate {
   tick: number;
   players: PlayerPosition[];
   timestamp: number;
 }
+
+// Chat range constant
+export const CHAT_RANGE = 10;
 
 // Tile types dictionary
 export enum TileType {
@@ -70,6 +79,7 @@ export interface ClientToServerEvents {
   PLAYER_MOVE: (payload: MovePayload) => void;
   PLAYER_JOIN: (playerName: string) => void;
   PLAYER_DISCONNECT: () => void;
+  CHAT_MESSAGE: (payload: ChatMessagePayload) => void;
 }
 
 export interface ServerToClientEvents {
@@ -80,4 +90,5 @@ export interface ServerToClientEvents {
   MOVE_CONFIRMED: (position: Position) => void;
   MOVE_REJECTED: (reason: string) => void;
   MAP_DATA: (mapData: MapData) => void;
+  CHAT_MESSAGE: (payload: ChatMessagePayload & { senderName: string }) => void;
 }

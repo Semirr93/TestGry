@@ -1,12 +1,18 @@
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import { io, Socket } from 'socket.io-client';
-import { Position, PlayerPosition, GameStateUpdate, MovePayload, ClientToServerEvents, ServerToClientEvents, MapData } from '../../../../shared/types';
+import { Position, PlayerPosition, GameStateUpdate, MovePayload, ClientToServerEvents, ServerToClientEvents, MapData, ChatMessagePayload } from '../../../../shared/types';
 import { MapRenderer } from './MapRenderer';
+
+interface PlayerContainer extends Container {
+  playerName: Text;
+  messageBubble?: Text;
+  messageBubbleTimeout?: NodeJS.Timeout;
+}
 
 export class GameClient {
   private app: Application;
   private socket: Socket<ClientToServerEvents, ServerToClientEvents>;
-  private players: Map<string, Container> = new Map();
+  private players: Map<string, PlayerContainer> = new Map();
   private tileSize: number = 32;
   private mapWidth: number = 20;
   private mapHeight: number = 20;
@@ -17,9 +23,13 @@ export class GameClient {
   private playerName: string = '';
   private mapRenderer: MapRenderer;
   private mapData: MapData | null = null;
+  private wsUrl: string;
+  private onChatMessage?: (message: ChatMessagePayload & { senderName: string }) => void;
 
   constructor(canvas: HTMLCanvasElement, playerName: string) {
     this.playerName = playerName;
+    this.wsUrl = (import.meta.env.VITE_WS_URL || 'ws://localhost:3001').replace('ws://', 'http://');
+    
     this.app = new Application({
       view: canvas,
       width: this.viewportWidth * this.tileSize,
@@ -27,7 +37,7 @@ export class GameClient {
       backgroundColor: 0x1a1a1a,
     });
 
-    this.socket = io('http://localhost:3001');
+    this.socket = io(this.wsUrl);
     this.mapRenderer = new MapRenderer(
       this.viewportWidth * this.tileSize,
       this.viewportHeight * this.tileSize
@@ -38,6 +48,21 @@ export class GameClient {
     
     // Add map renderer to stage
     this.app.stage.addChild(this.mapRenderer.getContainer());
+  }
+
+  public setChatMessageHandler(handler: (message: ChatMessagePayload & { senderName: string }) => void): void {
+    this.onChatMessage = handler;
+  }
+
+  public sendMessage(text: string): void {
+    if (text.trim()) {
+      const payload: ChatMessagePayload = {
+        senderId: this.localPlayerId,
+        text: text.trim(),
+        timestamp: Date.now()
+      };
+      this.socket.emit('CHAT_MESSAGE', payload);
+    }
   }
 
   private setupSocketListeners(): void {
@@ -70,6 +95,14 @@ export class GameClient {
       console.log('Move rejected:', reason);
     });
 
+    this.socket.on('CHAT_MESSAGE', (message) => {
+      console.log(`Chat message: ${message.senderName}: ${message.text}`);
+      if (this.onChatMessage) {
+        this.onChatMessage(message);
+      }
+      this.showMessageBubble(message.senderId, message.text);
+    });
+
     this.socket.on('MAP_DATA', async (mapData: MapData) => {
       console.log('Received map data:', mapData);
       this.mapData = mapData;
@@ -83,7 +116,7 @@ export class GameClient {
   }
 
   private createPlayerContainer(playerId: string, position: Position, name: string): void {
-    const playerContainer = new Container();
+    const playerContainer: PlayerContainer = new Container() as PlayerContainer;
     
     // Player body (rectangle)
     const body = new Graphics();
@@ -103,11 +136,50 @@ export class GameClient {
     
     playerContainer.addChild(body);
     playerContainer.addChild(nameText);
+    playerContainer.playerName = nameText;
     playerContainer.x = position.x * this.tileSize + 2;
     playerContainer.y = position.y * this.tileSize + 2;
     
     this.players.set(playerId, playerContainer);
     this.app.stage.addChild(playerContainer);
+  }
+
+  private showMessageBubble(playerId: string, text: string): void {
+    const playerContainer = this.players.get(playerId);
+    if (!playerContainer) return;
+
+    // Remove existing message bubble and timeout
+    if (playerContainer.messageBubbleTimeout) {
+      clearTimeout(playerContainer.messageBubbleTimeout);
+      if (playerContainer.messageBubble) {
+        playerContainer.removeChild(playerContainer.messageBubble);
+      }
+    }
+
+    // Create new message bubble
+    const messageBubble = new Text(text, {
+      fontFamily: 'Arial',
+      fontSize: 9,
+      fill: 0xffffff,
+      stroke: 0x000000,
+      strokeThickness: 2,
+      align: 'center'
+    });
+    
+    messageBubble.anchor.set(0.5, 1);
+    messageBubble.x = (this.tileSize - 4) / 2;
+    messageBubble.y = -5; // Above player
+    
+    playerContainer.addChild(messageBubble);
+    playerContainer.messageBubble = messageBubble;
+
+    // Remove bubble after 5 seconds
+    playerContainer.messageBubbleTimeout = setTimeout(() => {
+      if (playerContainer.messageBubble) {
+        playerContainer.removeChild(playerContainer.messageBubble);
+        playerContainer.messageBubble = undefined;
+      }
+    }, 5000);
   }
 
   private updatePlayers(playerPositions: PlayerPosition[]): void {

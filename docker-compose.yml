@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      # Add database environment variables here when needed
+      # - DB_HOST=database
+      # - REDIS_HOST=redis
+    networks:
+      - game-network
+    restart: unless-stopped
+
+  client:
+    build:
+      context: .
+      dockerfile: apps/client/Dockerfile
+      args:
+        - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:3001}
+    ports:
+      - "80:80"
+    environment:
+      - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:3001}
+    depends_on:
+      - server
+    networks:
+      - game-network
+    restart: unless-stopped
+
+networks:
+  game-network:
+    driver: bridge
+
+volumes:
+  # Add volumes here if needed for persistent data
+  # postgres_data:
+  # redis_data:

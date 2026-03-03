@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { Position, Player, PlayerPosition, MovePayload, GameStateUpdate, ClientToServerEvents, ServerToClientEvents, TileType, Tile, GameMap, MapData } from '../../../../shared/types';
+import { Position, Player, PlayerPosition, MovePayload, GameStateUpdate, ClientToServerEvents, ServerToClientEvents, TileType, Tile, GameMap, MapData, ChatMessagePayload, CHAT_RANGE } from '../../../../shared/types';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -242,5 +242,37 @@ export class GameEngine {
       map: this.map,
       tileTypes: this.tileTypes
     };
+  }
+
+  public handleChatMessage(socketId: string, payload: ChatMessagePayload): void {
+    const sender = this.players.get(socketId);
+    if (!sender) return;
+
+    console.log(`Chat message from ${sender.name}: ${payload.text}`);
+
+    // Find all players within chat range
+    const recipients: string[] = [];
+    for (const [playerId, player] of this.players) {
+      const distance = this.calculateDistance(sender.position, player.position);
+      if (distance <= CHAT_RANGE) {
+        recipients.push(playerId);
+      }
+    }
+
+    // Send message to recipients
+    const messagePayload = {
+      ...payload,
+      senderName: sender.name
+    };
+
+    recipients.forEach(playerId => {
+      this.io.to(playerId).emit('CHAT_MESSAGE', messagePayload);
+    });
+  }
+
+  private calculateDistance(pos1: Position, pos2: Position): number {
+    const dx = pos1.x - pos2.x;
+    const dy = pos1.y - pos2.y;
+    return Math.sqrt(dx * dx + dy * dy);
   }
 }

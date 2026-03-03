@@ -54,6 +54,11 @@ io.on('connection', (socket) => {
       socket.emit('MOVE_REJECTED', result.reason || 'Unknown error');
     }
   });
+
+  // Handle chat messages
+  socket.on('CHAT_MESSAGE', (payload) => {
+    gameEngine.handleChatMessage(socket.id, payload);
+  });
   
   socket.on('disconnect', () => {
     console.log('Player disconnected:', socket.id);
