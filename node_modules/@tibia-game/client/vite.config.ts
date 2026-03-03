@@ -28,6 +28,10 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       minify: true,
       rollupOptions: {
+        external: (id) => {
+          // Skip shared types during build
+          return id.includes('@shared')
+        },
         output: {
           manualChunks: {
             vendor: ['react', 'react-dom'],

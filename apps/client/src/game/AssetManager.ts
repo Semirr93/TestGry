@@ -1,5 +1,14 @@
 import { Texture, Spritesheet } from 'pixi.js';
-import { TileType } from '@shared/types';
+
+// Define TileType locally to avoid shared types issues
+export enum TileType {
+  GRASS = 0,
+  WALL = 1,
+  WATER = 2,
+  STONE = 3,
+  DIRT = 4,
+  SAND = 5,
+}
 
 export class AssetManager {
   private static instance: AssetManager;
