@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GameCanvas } from './components/GameCanvas';
 import { ChatOverlay } from './components/ChatOverlay';
 import { InventoryPanel } from './components/InventoryPanel';
-import { ChatMessagePayload, InventorySlot, ItemDropPayload } from '../../../shared/types';
+import { ChatMessagePayload, InventorySlot, ItemDropPayload } from '@shared/types';
 import './App.css';
 
 function App() {

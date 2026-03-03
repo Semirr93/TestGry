@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import { io, Socket } from 'socket.io-client';
-import { Position, PlayerPosition, GameStateUpdate, MovePayload, ClientToServerEvents, ServerToClientEvents, MapData, ChatMessagePayload, WorldItem, ItemPickupPayload, ItemDropPayload, InventorySlot } from '../../../../shared/types';
+import { Position, PlayerPosition, GameStateUpdate, MovePayload, ClientToServerEvents, ServerToClientEvents, MapData, ChatMessagePayload, WorldItem, ItemPickupPayload, ItemDropPayload, InventorySlot } from '@shared/types';
 import { MapRenderer } from './MapRenderer';
 import { ItemRenderer } from './ItemRenderer';
 

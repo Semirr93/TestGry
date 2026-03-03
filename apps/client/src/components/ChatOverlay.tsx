@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChatMessagePayload } from '../../../shared/types';
+import { ChatMessagePayload } from '@shared/types';
 
 interface ChatMessage extends ChatMessagePayload {
   senderName: string;

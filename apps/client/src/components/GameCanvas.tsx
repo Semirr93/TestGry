@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { GameClient } from '../game/GameClient';
-import { ChatMessagePayload, InventorySlot } from '../../../shared/types';
+import { ChatMessagePayload, InventorySlot } from '@shared/types';
 
 interface GameCanvasProps {
   playerName: string;
