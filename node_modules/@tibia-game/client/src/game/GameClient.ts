@@ -1,9 +1,106 @@
 // @ts-nocheck
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import { io, Socket } from 'socket.io-client';
-import { Position, PlayerPosition, GameStateUpdate, MovePayload, ClientToServerEvents, ServerToClientEvents, MapData, ChatMessagePayload, WorldItem, ItemPickupPayload, ItemDropPayload, InventorySlot } from '@shared/types';
 import { MapRenderer } from './MapRenderer';
 import { ItemRenderer } from './ItemRenderer';
+import { TileType } from './AssetManager';
+
+// Local type definitions
+interface Position {
+  x: number;
+  y: number;
+  z: number;
+}
+
+interface PlayerPosition extends Position {
+  id: string;
+  name: string;
+}
+
+interface GameStateUpdate {
+  players: PlayerPosition[];
+  timestamp: number;
+}
+
+interface MovePayload {
+  direction: 'up' | 'down' | 'left' | 'right';
+}
+
+interface ChatMessagePayload {
+  text: string;
+  senderId: string;
+  timestamp: number;
+}
+
+interface WorldItem {
+  id: string;
+  worldItemId: string;
+  itemId: string;
+  position: Position;
+  item: {
+    id: string;
+    name: string;
+    rarity: string;
+    description: string;
+    value: number;
+  };
+}
+
+interface ItemPickupPayload {
+  worldItemId: string;
+}
+
+interface ItemDropPayload {
+  slotId: string;
+  position: Position;
+}
+
+interface InventorySlot {
+  id: string;
+  itemId: string;
+  quantity: number;
+  item: {
+    id: string;
+    name: string;
+    rarity: string;
+    description: string;
+    value: number;
+  };
+}
+
+interface Tile {
+  type: TileType;
+  isWalkable: boolean;
+}
+
+interface GameMap {
+  width: number;
+  height: number;
+  tiles: number[][];
+}
+
+interface MapData {
+  map: GameMap;
+  tileTypes: Record<number, { name: string; color: string }>;
+}
+
+// Socket.io event interfaces
+interface ClientToServerEvents {
+  move: (payload: MovePayload) => void;
+  chat: (payload: ChatMessagePayload) => void;
+  pickupItem: (payload: ItemPickupPayload) => void;
+  dropItem: (payload: ItemDropPayload) => void;
+}
+
+interface ServerToClientEvents {
+  gameState: (update: GameStateUpdate) => void;
+  playerJoined: (player: PlayerPosition) => void;
+  playerLeft: (playerId: string) => void;
+  chatMessage: (message: ChatMessagePayload & { senderName: string }) => void;
+  mapData: (data: MapData) => void;
+  inventoryUpdate: (inventory: InventorySlot[]) => void;
+  itemsUpdate: (items: WorldItem[]) => void;
+}
 
 interface PlayerContainer extends Container {
   playerName: Text;
@@ -40,6 +137,9 @@ export class GameClient {
       width: this.viewportWidth * this.tileSize,
       height: this.viewportHeight * this.tileSize,
       backgroundColor: 0x1a1a1a,
+      preserveDrawingBuffer: true,
+      antialias: false,
+      resolution: 1,
     });
 
     this.socket = io(this.wsUrl);
