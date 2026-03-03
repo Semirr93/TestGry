@@ -1,5 +1,5 @@
 import { Texture, Spritesheet } from 'pixi.js';
-import { TileType } from '../../../../shared/types';
+import { TileType } from '@shared/types';
 
 export class AssetManager {
   private static instance: AssetManager;
