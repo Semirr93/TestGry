@@ -19,9 +19,9 @@ COPY apps/server/ ./apps/server/
 # Install ALL dependencies (including devDependencies for TypeScript build)
 RUN npm ci
 
-# Build TypeScript with proper paths
+# Build TypeScript
 WORKDIR /app/apps/server
-RUN npx tsc --project . --outDir ./dist --rootDir ./src
+RUN npm run build
 
 # Production stage
 FROM node:20-slim as production
@@ -49,4 +49,4 @@ ENV NODE_ENV=production
 ENV PORT=3001
 
 # Start the server
-CMD ["node", "apps/server/dist/src/index.js"]
+CMD ["node", "dist/apps/server/src/index.js"]
