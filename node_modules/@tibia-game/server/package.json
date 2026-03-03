@@ -6,7 +6,7 @@
 "scripts": {
   "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
   "build": "tsc && mkdir -p dist/apps/server/src/game && cp src/game/*.json dist/apps/server/src/game/",
-  "start": "node dist/src/index.js"
+  "start": "node dist/apps/server/src/index.js"
 },
   "dependencies": {
     "express": "^4.18.2",
