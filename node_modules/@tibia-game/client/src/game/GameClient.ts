@@ -1,0 +1,187 @@
+import { Application, Container, Graphics, Text } from 'pixi.js';
+import { io, Socket } from 'socket.io-client';
+import { Position, PlayerPosition, GameStateUpdate, MovePayload, ClientToServerEvents, ServerToClientEvents } from '../../../../shared/types';
+
+export class GameClient {
+  private app: Application;
+  private socket: Socket<ClientToServerEvents, ServerToClientEvents>;
+  private players: Map<string, Container> = new Map();
+  private tileSize: number = 32;
+  private mapWidth: number = 20;
+  private mapHeight: number = 20;
+  private viewportWidth: number = 15;
+  private viewportHeight: number = 11;
+  private cameraPosition: Position = { x: 0, y: 0, z: 0 };
+  private localPlayerId: string = '';
+  private playerName: string = '';
+
+  constructor(canvas: HTMLCanvasElement, playerName: string) {
+    this.playerName = playerName;
+    this.app = new Application({
+      view: canvas,
+      width: this.viewportWidth * this.tileSize,
+      height: this.viewportHeight * this.tileSize,
+      backgroundColor: 0x1a1a1a,
+    });
+
+    this.socket = io('http://localhost:3001');
+    this.setupSocketListeners();
+    this.setupKeyboardControls();
+    this.createMap();
+  }
+
+  private setupSocketListeners(): void {
+    this.socket.on('connect', () => {
+      console.log('Connected to server');
+      this.localPlayerId = this.socket.id;
+      this.socket.emit('PLAYER_JOIN', this.playerName);
+    });
+
+    this.socket.on('WORLD_UPDATE', (state: GameStateUpdate) => {
+      this.updatePlayers(state.players);
+    });
+
+    this.socket.on('PLAYER_JOINED', (player) => {
+      console.log(`Player ${player.name} joined the game`);
+      this.createPlayerContainer(player.id, player.position, player.name);
+    });
+
+    this.socket.on('PLAYER_LEFT', (playerId: string) => {
+      console.log(`Player ${playerId} left the game`);
+      this.removePlayer(playerId);
+    });
+
+    this.socket.on('MOVE_CONFIRMED', (position: Position) => {
+      // Movement confirmed by server - interpolation will handle smooth transition
+      console.log('Move confirmed to:', position);
+    });
+
+    this.socket.on('MOVE_REJECTED', (reason: string) => {
+      console.log('Move rejected:', reason);
+    });
+  }
+
+  private createMap(): void {
+    const mapContainer = new Container();
+    
+    // Create grid tiles
+    for (let x = 0; x < this.mapWidth; x++) {
+      for (let y = 0; y < this.mapHeight; y++) {
+        const tile = new Graphics();
+        tile.beginFill((x + y) % 2 === 0 ? 0x2d5016 : 0x3a6b1e);
+        tile.drawRect(0, 0, this.tileSize, this.tileSize);
+        tile.endFill();
+        tile.x = x * this.tileSize;
+        tile.y = y * this.tileSize;
+        mapContainer.addChild(tile);
+      }
+    }
+
+    this.app.stage.addChild(mapContainer);
+  }
+
+  private createPlayerContainer(playerId: string, position: Position, name: string): void {
+    const playerContainer = new Container();
+    
+    // Player body (rectangle)
+    const body = new Graphics();
+    body.beginFill(playerId === this.localPlayerId ? 0x00ff00 : 0xff0000);
+    body.drawRect(0, 0, this.tileSize - 4, this.tileSize - 4);
+    body.endFill();
+    
+    // Player name
+    const nameText = new Text(name, {
+      fontFamily: 'Arial',
+      fontSize: 10,
+      fill: 0xffffff,
+    });
+    nameText.anchor.set(0.5, -0.5);
+    nameText.x = (this.tileSize - 4) / 2;
+    nameText.y = (this.tileSize - 4) / 2;
+    
+    playerContainer.addChild(body);
+    playerContainer.addChild(nameText);
+    playerContainer.x = position.x * this.tileSize + 2;
+    playerContainer.y = position.y * this.tileSize + 2;
+    
+    this.players.set(playerId, playerContainer);
+    this.app.stage.addChild(playerContainer);
+  }
+
+  private updatePlayers(playerPositions: PlayerPosition[]): void {
+    playerPositions.forEach(playerPos => {
+      let playerContainer = this.players.get(playerPos.id);
+      
+      if (!playerContainer) {
+        // Create new player container if it doesn't exist
+        this.createPlayerContainer(playerPos.id, playerPos.position, `Player ${playerPos.id.slice(0, 4)}`);
+        playerContainer = this.players.get(playerPos.id)!;
+      }
+      
+      // Update position with interpolation
+      this.interpolatePlayerPosition(playerContainer, playerPos.position);
+    });
+  }
+
+  private interpolatePlayerPosition(playerContainer: Container, targetPosition: Position): void {
+    const targetX = targetPosition.x * this.tileSize + 2;
+    const targetY = targetPosition.y * this.tileSize + 2;
+    
+    // Simple interpolation - in real implementation, use smooth easing
+    const speed = 0.2;
+    playerContainer.x += (targetX - playerContainer.x) * speed;
+    playerContainer.y += (targetY - playerContainer.y) * speed;
+  }
+
+  private removePlayer(playerId: string): void {
+    const playerContainer = this.players.get(playerId);
+    if (playerContainer) {
+      this.app.stage.removeChild(playerContainer);
+      this.players.delete(playerId);
+    }
+  }
+
+  private setupKeyboardControls(): void {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (!this.localPlayerId) return;
+
+      let direction: 'north' | 'south' | 'east' | 'west' | null = null;
+
+      switch (event.key.toLowerCase()) {
+        case 'arrowup':
+        case 'w':
+          direction = 'north';
+          break;
+        case 'arrowdown':
+        case 's':
+          direction = 'south';
+          break;
+        case 'arrowleft':
+        case 'a':
+          direction = 'west';
+          break;
+        case 'arrowright':
+        case 'd':
+          direction = 'east';
+          break;
+      }
+
+      if (direction) {
+        event.preventDefault();
+        this.requestMove(direction);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+  }
+
+  private requestMove(direction: 'north' | 'south' | 'east' | 'west'): void {
+    const payload: MovePayload = { direction };
+    this.socket.emit('PLAYER_MOVE', payload);
+  }
+
+  public destroy(): void {
+    this.socket.disconnect();
+    this.app.destroy(true);
+  }
+}
