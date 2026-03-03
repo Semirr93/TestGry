@@ -2,8 +2,32 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GameCanvas } from './components/GameCanvas';
 import { ChatOverlay } from './components/ChatOverlay';
 import { InventoryPanel } from './components/InventoryPanel';
-import { ChatMessagePayload, InventorySlot, ItemDropPayload } from '@shared/types';
 import './App.css';
+
+// Define types locally to avoid shared types issues
+export interface ChatMessagePayload {
+  text: string;
+  senderId: string;
+  timestamp: number;
+}
+
+export interface InventorySlot {
+  id: string;
+  itemId: string;
+  quantity: number;
+  item: {
+    id: string;
+    name: string;
+    rarity: string;
+    description: string;
+    value: number;
+  };
+}
+
+export interface ItemDropPayload {
+  slotId: string;
+  position: { x: number; y: number; z: number };
+}
 
 function App() {
   const [playerName, setPlayerName] = useState('');
@@ -38,7 +62,7 @@ function App() {
       const localPlayer = gameClientRef.current.getLocalPlayer();
       if (localPlayer) {
         const dropPayload: ItemDropPayload = {
-          item: slot.item,
+          slotId: slot.id,
           position: localPlayer.position
         };
         gameClientRef.current.dropItem(dropPayload);
