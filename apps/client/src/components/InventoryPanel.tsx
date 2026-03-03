@@ -1,5 +1,5 @@
 import React from 'react';
-import { InventorySlot, Item, ItemRarity } from '@shared/types';
+import { InventorySlot, Item, ItemRarity } from '../App';
 
 interface InventoryPanelProps {
   inventory: InventorySlot[];

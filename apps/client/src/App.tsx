@@ -15,13 +15,23 @@ export interface InventorySlot {
   id: string;
   itemId: string;
   quantity: number;
-  item: {
-    id: string;
-    name: string;
-    rarity: string;
-    description: string;
-    value: number;
-  };
+  item: Item;
+}
+
+export interface Item {
+  id: string;
+  name: string;
+  rarity: ItemRarity;
+  description: string;
+  value: number;
+}
+
+export enum ItemRarity {
+  COMMON = 'common',
+  UNCOMMON = 'uncommon',
+  RARE = 'rare',
+  EPIC = 'epic',
+  LEGENDARY = 'legendary'
 }
 
 export interface ItemDropPayload {
