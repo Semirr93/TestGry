@@ -23,6 +23,9 @@ RUN npm ci
 WORKDIR /app/apps/server
 RUN npm run build
 
+# Debug: Show exact path to index.js
+RUN find /app/apps/server/dist -name "index.js" -exec echo "Found index.js at: {}" \;
+
 # Production stage
 FROM node:20-slim as production
 
@@ -50,4 +53,4 @@ ENV PORT=3001
 
 # Start the server
 WORKDIR /app/apps/server
-CMD ["node", "dist/src/index.js"]
+CMD ["node", "dist/apps/server/src/index.js"]
