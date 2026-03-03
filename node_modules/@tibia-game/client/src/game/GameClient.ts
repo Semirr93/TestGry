@@ -32,7 +32,7 @@ export class GameClient {
 
   constructor(canvas: HTMLCanvasElement, playerName: string) {
     this.playerName = playerName;
-    this.wsUrl = (import.meta.env.VITE_WS_URL || 'ws://localhost:3001').replace('ws://', 'http://');
+    this.wsUrl = (import.meta.env?.VITE_WS_URL || 'ws://gierka-gierka-bpoqsc-ec524f-57-129-120-62.traefik.me/').replace('ws://', 'http://');
     
     this.app = new Application({
       view: canvas,
