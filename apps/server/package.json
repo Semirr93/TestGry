@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc",
+    "build": "tsc && xcopy src\\game\\*.json dist\\apps\\server\\src\\game\\ /E /I /Y",
     "start": "node dist/index.js"
   },
   "dependencies": {

@@ -26,6 +26,11 @@ const PORT = process.env.PORT || 3001;
 const gameEngine = new GameEngine(io);
 gameEngine.start();
 
+// Test endpoint
+app.get('/', (req, res) => {
+  res.send('Game Server is Running!');
+});
+
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
   
