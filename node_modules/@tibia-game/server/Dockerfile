@@ -24,7 +24,7 @@ WORKDIR /app/apps/server
 RUN npm run build
 
 # Debug: Show exact structure of dist folder
-RUN echo "STRUKTURA DIST:" && find dist -name index.js
+RUN echo "=== LOKALIZACJA PLIKÓW ===" && find dist -name index.js
 
 # Production stage
 FROM node:20-slim as production
